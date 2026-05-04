@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Payments Moat Scanner — editorial finance terminal aesthetic */
+
+@layer base {
+  :root {
+    --background: 40 30% 96%;
+    --foreground: 20 14% 8%;
+
+    --card: 40 30% 98%;
+    --card-foreground: 20 14% 8%;
+
+    --popover: 40 30% 98%;
+    --popover-foreground: 20 14% 8%;
+
+    --primary: 20 14% 8%;
+    --primary-foreground: 40 30% 96%;
+
+    --secondary: 40 20% 90%;
+    --secondary-foreground: 20 14% 8%;
+
+    --muted: 40 15% 88%;
+    --muted-foreground: 20 8% 38%;
+
+    --accent: 14 90% 53%;
+    --accent-foreground: 40 30% 98%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 40 30% 98%;
+
+    --border: 20 14% 84%;
+    --input: 20 14% 84%;
+    --ring: 14 90% 53%;
+
+    --radius: 0.125rem;
+
+    /* Tier colors */
+    --tier-s: 142 70% 35%;
+    --tier-a: 175 60% 38%;
+    --tier-b: 38 92% 48%;
+    --tier-c: 24 90% 52%;
+    --tier-d: 0 72% 45%;
+
+    --grid-line: 20 14% 78%;
+  }
+
+  .dark {
+    --background: 20 14% 6%;
+    --foreground: 40 30% 94%;
+    --card: 20 14% 8%;
+    --card-foreground: 40 30% 94%;
+    --popover: 20 14% 8%;
+    --popover-foreground: 40 30% 94%;
+    --primary: 40 30% 94%;
+    --primary-foreground: 20 14% 6%;
+    --secondary: 20 14% 14%;
+    --secondary-foreground: 40 30% 94%;
+    --muted: 20 14% 12%;
+    --muted-foreground: 40 10% 60%;
+    --accent: 14 90% 58%;
+    --accent-foreground: 20 14% 6%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 40 30% 94%;
+    --border: 20 14% 18%;
+    --input: 20 14% 18%;
+    --ring: 14 90% 58%;
+    --grid-line: 20 14% 16%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+  }
+  .font-display { font-family: 'Fraunces', Georgia, serif; font-feature-settings: "ss01"; }
+  .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+}
+
+@layer utilities {
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, hsl(var(--grid-line) / 0.4) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--grid-line) / 0.4) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .ticker-strip {
+    background: repeating-linear-gradient(
+      45deg,
+      hsl(var(--foreground)) 0,
+      hsl(var(--foreground)) 8px,
+      hsl(var(--accent)) 8px,
+      hsl(var(--accent)) 16px
+    );
+  }
+}
