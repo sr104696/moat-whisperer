@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: "You are a rigorous payments industry analyst. Output via the provided tool only." },
           { role: "user", content: `${RUBRIC_PROMPT}\n\nVariation seed: ${seed}` },
@@ -142,11 +142,23 @@ Deno.serve(async (req) => {
 
     const data = await res.json();
     const call = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!call) throw new Error("No tool call returned");
-    const args = JSON.parse(call.function.arguments);
+    if (!call) {
+      console.error("No tool call. Full response:", JSON.stringify(data).slice(0, 2000));
+      throw new Error("No tool call returned by model");
+    }
+    let args: any;
+    try {
+      args = JSON.parse(call.function.arguments);
+    } catch (err) {
+      console.error("Failed to parse args:", call.function.arguments?.slice(0, 1000));
+      throw new Error("Invalid JSON from model");
+    }
 
-    const enriched = (args.companies || [])
-      .filter((c: any) => c.market_cap_usd_b < 40)
+    const rawCompanies = args.companies || [];
+    console.log(`Model returned ${rawCompanies.length} companies; sample:`, JSON.stringify(rawCompanies[0])?.slice(0, 400));
+
+    const enriched = rawCompanies
+      .filter((c: any) => typeof c.market_cap_usd_b === "number" && c.market_cap_usd_b > 0 && c.market_cap_usd_b < 40)
       .map((c: any) => {
         const raw = CATEGORIES.reduce((s, cat) => s + (c.scores[cat.key] ?? 0), 0);
         const weighted = CATEGORIES.reduce(
@@ -157,6 +169,8 @@ Deno.serve(async (req) => {
         return { ...c, raw, weighted, max_weighted: MAX_WEIGHTED, pct, tier: t };
       })
       .sort((a: any, b: any) => b.weighted - a.weighted);
+
+    console.log(`Returning ${enriched.length} after filter`);
 
     return new Response(
       JSON.stringify({ companies: enriched, categories: CATEGORIES }),
