@@ -142,11 +142,20 @@ Deno.serve(async (req) => {
 
     const data = await res.json();
     const call = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!call) throw new Error("No tool call returned");
-    const args = JSON.parse(call.function.arguments);
+    if (!call) {
+      console.error("No tool call. Full response:", JSON.stringify(data).slice(0, 2000));
+      throw new Error("No tool call returned by model");
+    }
+    let args: any;
+    try {
+      args = JSON.parse(call.function.arguments);
+    } catch (err) {
+      console.error("Failed to parse args:", call.function.arguments?.slice(0, 1000));
+      throw new Error("Invalid JSON from model");
+    }
 
     const rawCompanies = args.companies || [];
-    console.log(`Model returned ${rawCompanies.length} companies`);
+    console.log(`Model returned ${rawCompanies.length} companies; sample:`, JSON.stringify(rawCompanies[0])?.slice(0, 400));
 
     const enriched = rawCompanies
       .filter((c: any) => typeof c.market_cap_usd_b === "number" && c.market_cap_usd_b > 0 && c.market_cap_usd_b < 40)
