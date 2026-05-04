@@ -1,1 +1,4 @@
 project_id = "rmkvfnezdozdnaihnyjk"
+
+[functions.scan-payments]
+verify_jwt = false
