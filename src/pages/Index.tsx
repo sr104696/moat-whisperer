@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,8 +29,19 @@ const tierColor = (l: string) => {
     case "A": return "bg-[hsl(var(--tier-a))] text-white";
     case "B": return "bg-[hsl(var(--tier-b))] text-primary";
     case "C": return "bg-[hsl(var(--tier-c))] text-white";
-    default:  return "bg-[hsl(var(--tier-d))] text-white";
+    default: return "bg-[hsl(var(--tier-d))] text-white";
   }
+};
+
+const normalizeScanData = (data: unknown): { companies: Company[]; categories: Category[] } => {
+  const fallback = { companies: [], categories: [] };
+  if (!data || typeof data !== "object") return fallback;
+
+  const maybe = data as { companies?: Company[]; categories?: Category[] };
+  return {
+    companies: Array.isArray(maybe.companies) ? maybe.companies : [],
+    categories: Array.isArray(maybe.categories) ? maybe.categories : [],
+  };
 };
 
 const Index = () => {
@@ -40,27 +51,40 @@ const Index = () => {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [scanCount, setScanCount] = useState(0);
 
-  const scan = async () => {
+  const sortedCompanies = useMemo(
+    () => [...companies].sort((a, b) => b.pct - a.pct || b.weighted - a.weighted),
+    [companies],
+  );
+
+  const scan = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("scan-payments");
       if (error) throw error;
-      if (data.error) throw new Error(data.error);
-      setCompanies(data.companies);
-      setCategories(data.categories);
+
+      const normalized = normalizeScanData(data);
+      setCompanies(normalized.companies);
+      setCategories(normalized.categories);
       setScanCount((c) => c + 1);
       setExpanded(null);
-      toast.success(`Scanned ${data.companies.length} companies`);
-    } catch (e: any) {
-      toast.error(e.message || "Scan failed");
+
+      if (!normalized.companies.length) {
+        toast.warning("Scan completed but returned no companies");
+      } else {
+        toast.success(`Scanned ${normalized.companies.length} companies`);
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Scan failed";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const ctaLabel = loading ? "Scanning markets" : companies.length ? "Re-run scan" : "Run scan";
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border">
         <div className="ticker-strip h-2" />
         <div className="container mx-auto px-6 py-8">
@@ -84,13 +108,12 @@ const Index = () => {
               className="font-mono uppercase tracking-wider rounded-none border-2 border-foreground bg-accent text-accent-foreground hover:bg-foreground hover:text-background transition-colors h-14 px-8"
             >
               {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <RefreshCw className="mr-2 h-5 w-5" />}
-              {loading ? "Scanning markets" : companies.length ? "Re-run scan" : "Run scan"}
+              {ctaLabel}
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Empty state */}
       {!companies.length && !loading && (
         <section className="grid-bg border-b border-border">
           <div className="container mx-auto px-6 py-24 text-center">
@@ -113,27 +136,27 @@ const Index = () => {
         </div>
       )}
 
-      {/* Results */}
-      {companies.length > 0 && (
+      {sortedCompanies.length > 0 && (
         <main className="container mx-auto px-6 py-12">
           <div className="flex items-baseline justify-between mb-6 border-b-2 border-foreground pb-2">
             <h2 className="font-display text-2xl font-semibold">Ranked by Weighted Score</h2>
             <span className="font-mono text-xs text-muted-foreground uppercase tracking-widest">
-              {companies.length} entrants
+              {sortedCompanies.length} entrants
             </span>
           </div>
 
           <div className="space-y-3">
-            {companies.map((c, i) => {
+            {sortedCompanies.map((c, i) => {
               const isOpen = expanded === c.name;
               return (
                 <Card
-                  key={c.name + i}
+                  key={`${c.ticker}-${i}`}
                   className="rounded-none border-2 border-border hover:border-foreground transition-colors overflow-hidden"
                 >
                   <button
                     onClick={() => setExpanded(isOpen ? null : c.name)}
                     className="w-full text-left"
+                    aria-expanded={isOpen}
                   >
                     <div className="grid grid-cols-12 gap-4 items-center p-5">
                       <div className="col-span-1 font-display text-3xl font-bold text-muted-foreground">
