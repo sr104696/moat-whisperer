@@ -10,6 +10,7 @@ type Category = { key: string; name: string; weight: number; inverse: boolean };
 type Company = {
   name: string;
   ticker: string;
+  sector?: string;
   market_cap_usd_b: number;
   business_summary: string;
   source_of_moat: string;
@@ -33,14 +34,15 @@ const tierColor = (l: string) => {
   }
 };
 
-const normalizeScanData = (data: unknown): { companies: Company[]; categories: Category[] } => {
-  const fallback = { companies: [], categories: [] };
+const normalizeScanData = (data: unknown): { companies: Company[]; categories: Category[]; lens: string } => {
+  const fallback = { companies: [], categories: [], lens: "" };
   if (!data || typeof data !== "object") return fallback;
 
-  const maybe = data as { companies?: Company[]; categories?: Category[] };
+  const maybe = data as { companies?: Company[]; categories?: Category[]; lens?: string };
   return {
     companies: Array.isArray(maybe.companies) ? maybe.companies : [],
     categories: Array.isArray(maybe.categories) ? maybe.categories : [],
+    lens: typeof maybe.lens === "string" ? maybe.lens : "",
   };
 };
 
@@ -50,6 +52,8 @@ const Index = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [scanCount, setScanCount] = useState(0);
+  const [scanLens, setScanLens] = useState("");
+  const [seenTickers, setSeenTickers] = useState<string[]>([]);
 
   const sortedCompanies = useMemo(
     () => [...companies].sort((a, b) => b.pct - a.pct || b.weighted - a.weighted),
@@ -59,12 +63,16 @@ const Index = () => {
   const scan = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("scan-payments");
+      const { data, error } = await supabase.functions.invoke("scan-payments", {
+        body: { excludeTickers: seenTickers },
+      });
       if (error) throw error;
 
       const normalized = normalizeScanData(data);
       setCompanies(normalized.companies);
       setCategories(normalized.categories);
+      setScanLens(normalized.lens);
+      setSeenTickers((tickers) => Array.from(new Set([...tickers, ...normalized.companies.map((company) => company.ticker)])));
       setScanCount((c) => c + 1);
       setExpanded(null);
 
@@ -79,9 +87,9 @@ const Index = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [seenTickers]);
 
-  const ctaLabel = loading ? "Scanning markets" : companies.length ? "Re-run scan" : "Run scan";
+  const ctaLabel = loading ? "Scanning markets" : companies.length ? "Fetch new list" : "Fetch companies";
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,14 +99,14 @@ const Index = () => {
           <div className="flex items-baseline justify-between gap-4 flex-wrap">
             <div>
               <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
-                Issue №{String(scanCount).padStart(3, "0")} · Live Scan
+                Issue №{String(scanCount).padStart(3, "0")} · Fresh Public-Company Scan
               </div>
               <h1 className="font-display text-5xl md:text-7xl font-semibold leading-[0.95] tracking-tight">
                 The Moat<br />
                 <span className="italic text-accent">Scanner</span>
               </h1>
               <p className="mt-4 max-w-xl text-muted-foreground font-mono text-sm">
-                Payments companies under <span className="text-foreground font-bold">$40B</span> market cap, scored against a 16-category competitive-moat rubric.
+                Public companies under <span className="text-foreground font-bold">$40B</span> market cap, scored against a 16-category competitive-moat rubric across all sectors.
               </p>
             </div>
             <Button
@@ -118,10 +126,10 @@ const Index = () => {
         <section className="grid-bg border-b border-border">
           <div className="container mx-auto px-6 py-24 text-center">
             <p className="font-mono text-sm uppercase tracking-widest text-muted-foreground mb-4">
-              No data — press scan to begin
+              No data — fetch to begin
             </p>
             <p className="font-display text-2xl md:text-3xl max-w-2xl mx-auto text-muted-foreground italic">
-              Each scan generates a fresh, AI-curated set of sub-$40B payments names — public &amp; private — ranked by weighted moat score.
+              Each fetch searches a new slice of the global public-company universe and excludes the last visible tickers.
             </p>
           </div>
         </section>
@@ -139,9 +147,16 @@ const Index = () => {
       {sortedCompanies.length > 0 && (
         <main className="container mx-auto px-6 py-12">
           <div className="flex items-baseline justify-between mb-6 border-b-2 border-foreground pb-2">
-            <h2 className="font-display text-2xl font-semibold">Ranked by Weighted Score</h2>
+            <div>
+              <h2 className="font-display text-2xl font-semibold">Ranked by Weighted Score</h2>
+              {scanLens && (
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
+                  Lens · {scanLens}
+                </p>
+              )}
+            </div>
             <span className="font-mono text-xs text-muted-foreground uppercase tracking-widest">
-              {sortedCompanies.length} entrants
+              {sortedCompanies.length} public companies
             </span>
           </div>
 
@@ -165,7 +180,7 @@ const Index = () => {
                       <div className="col-span-12 md:col-span-4">
                         <div className="font-display text-xl font-semibold leading-tight">{c.name}</div>
                         <div className="font-mono text-xs text-muted-foreground mt-1">
-                          {c.ticker} · ${c.market_cap_usd_b.toFixed(1)}B
+                          {c.ticker} · {c.sector ?? "Public company"} · ${c.market_cap_usd_b.toFixed(1)}B
                         </div>
                       </div>
                       <div className="col-span-4 md:col-span-2">
@@ -252,7 +267,7 @@ const Index = () => {
       <footer className="border-t border-border mt-12">
         <div className="container mx-auto px-6 py-6 font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex justify-between flex-wrap gap-2">
           <span>AI-generated · estimates · not investment advice</span>
-          <span>Rubric · 16 categories · weighted</span>
+          <span>All sectors · public only · 16 weighted categories</span>
         </div>
         <div className="ticker-strip h-2" />
       </footer>
