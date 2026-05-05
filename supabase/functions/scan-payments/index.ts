@@ -26,22 +26,40 @@ const CATEGORIES = [
 
 const MAX_WEIGHTED = CATEGORIES.reduce((s, c) => s + c.weight * 4, 0);
 
-const RUBRIC_PROMPT = `You are a payments industry analyst. Generate a list of 8 DIFFERENT payments-industry companies (public or private) with estimated market cap or valuation UNDER $40 billion USD. Vary the list — include lesser-known names, geographic diversity (LatAm, Africa, Asia, EU), and a mix of public & private. Avoid mega-caps (Stripe, Visa, Mastercard, PayPal, Adyen, Block/Square are OFF-LIMITS — too big or borderline).
+const RUBRIC_PROMPT = `You are a rigorous payments industry analyst. Generate a list of 8 DIFFERENT PUBLICLY TRADED payments-industry companies with current market cap UNDER $40 billion USD. Every company MUST have a real stock ticker on a recognized exchange (NYSE, Nasdaq, LSE, Euronext, B3, HKEX, TSX, ASX, NSE/BSE, JSE, etc.). NO PRIVATE COMPANIES. NO PRE-IPO. NO SPACS PRE-MERGER. If you are not certain a company is public and under $40B, do NOT include it.
 
-For EACH company, score the 16 categories of the Payments Moat Rubric from 0-4:
-0 = N/A/Absent, 1 = Weak, 2 = Average, 3 = Strong, 4 = Dominant.
-Category "hyperscaler_threat" is INVERSE: 4 = no threat, 0 = severe threat.
+Vary the list — include lesser-known names, geographic diversity (LatAm, Africa, Asia, EU, ME). Avoid mega-caps (Visa, Mastercard, PayPal, Adyen, Block/Square, Fiserv, FIS, Global Payments are OFF-LIMITS — too big or borderline). Stripe is OFF-LIMITS (private).
+
+SCORING DISCIPLINE — read carefully:
+For EACH of the 16 categories, assign an INTEGER 0-4. Use the FULL distribution. Most categories for most companies should land at 1 or 2. A "3" requires a defensible, evidence-backed reason. A "4" should be RARE — reserved for genuine category dominance (think Visa-tier in that one dimension). Do not give a company straight 3s. Do not cluster scores. A typical sub-$40B payments company should average 1.5-2.3 weighted; only true outliers exceed 2.6.
+
+Anchors:
+- 0 = Absent / not applicable to the business model
+- 1 = Weak / commoditized / clearly behind peers
+- 2 = Average / table stakes / on par with peers
+- 3 = Strong / measurable advantage vs. peers, defensible for 3+ years
+- 4 = Dominant / structural moat, hard to dislodge in 5+ years
+
+Category "hyperscaler_threat" is INVERSE: 4 = insulated from Apple/Google/Amazon/Big Tech encroachment, 0 = directly in the crosshairs and losing ground.
+
+Calibration checks before you finalize each company's scores:
+- If the company is a thin reseller / ISO / white-label processor → most categories should be 1; capital_float, network_effects, licensing typically 0-1.
+- If the company has no two-sided network → network_effects = 0 or 1, never 3+.
+- If the company doesn't hold customer balances → capital_float ≤ 1.
+- If the company doesn't issue or acquire directly → licensing ≤ 2, interchange ≤ 1.
+- If the company competes head-on with Apple Pay / Google Pay / Amazon → hyperscaler_threat ≤ 2.
+- Vertical specialization = 4 ONLY if they own >30% share of a defined vertical's payments.
 
 Categories: system_of_record, licensing, integrations, network_effects, proprietary_data, embedded_flows, auth_rates, hyperscaler_threat, local_methods, vertical, capital_float, chargeback, settlement_fx, distribution, compliance, interchange.
 
-Be honest and conservative — never guess high. Each company also needs:
-- name, ticker (or "Private"), market_cap_usd_b (number, billions, must be < 40)
+Each company also needs:
+- name, ticker (REAL exchange ticker, e.g. "NYSE:STNE", "NASDAQ:AFRM", "B3:CIEL3"), market_cap_usd_b (current, in billions, must be > 0 and < 40)
 - business_summary (2 sentences: what they do, who pays, how they make money)
-- source_of_moat (1 sentence)
-- biggest_vulnerability (1 sentence)
-- tier_changer (1 sentence: one event that would move the tier)
+- source_of_moat (1 sentence — be specific, no clichés)
+- biggest_vulnerability (1 sentence — name the actual threat)
+- tier_changer (1 sentence: one specific event that would move the tier up or down)
 
-Return ONLY valid JSON matching the tool schema. Generate genuinely different companies each call — be creative.`;
+Return ONLY valid JSON via the tool. Be conservative. Differentiate scores across categories — flat score profiles are a red flag and will be rejected.`;
 
 const tool = {
   type: "function",
@@ -159,6 +177,7 @@ Deno.serve(async (req) => {
 
     const enriched = rawCompanies
       .filter((c: any) => typeof c.market_cap_usd_b === "number" && c.market_cap_usd_b > 0 && c.market_cap_usd_b < 40)
+      .filter((c: any) => c.ticker && !/^(private|n\/?a|none|pre-?ipo)$/i.test(String(c.ticker).trim()))
       .map((c: any) => {
         const raw = CATEGORIES.reduce((s, cat) => s + (c.scores[cat.key] ?? 0), 0);
         const weighted = CATEGORIES.reduce(
