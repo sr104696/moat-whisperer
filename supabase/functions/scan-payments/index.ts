@@ -215,7 +215,9 @@ Deno.serve(async (req) => {
 
     const enriched = rawCompanies
       .filter((c: any) => typeof c.market_cap_usd_b === "number" && c.market_cap_usd_b > 0 && c.market_cap_usd_b < 40)
-      .filter((c: any) => c.ticker && !/^(private|n\/?a|none|pre-?ipo)$/i.test(String(c.ticker).trim()))
+      .filter((c: any) => hasRealTicker(c))
+      .filter((c: any) => !excludeTickers.includes(String(c.ticker).toUpperCase()))
+      .filter((c: any) => scoreShapeLooksReal(c))
       .map((c: any) => {
         const raw = CATEGORIES.reduce((s, cat) => s + (c.scores[cat.key] ?? 0), 0);
         const weighted = CATEGORIES.reduce(
@@ -225,12 +227,13 @@ Deno.serve(async (req) => {
         const t = tier(pct, c.scores.hyperscaler_threat ?? 2);
         return { ...c, raw, weighted, max_weighted: MAX_WEIGHTED, pct, tier: t };
       })
-      .sort((a: any, b: any) => b.weighted - a.weighted);
+      .sort((a: any, b: any) => b.weighted - a.weighted)
+      .slice(0, 12);
 
     console.log(`Returning ${enriched.length} after filter`);
 
     return new Response(
-      JSON.stringify({ companies: enriched, categories: CATEGORIES }),
+      JSON.stringify({ companies: enriched, categories: CATEGORIES, lens, seed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
