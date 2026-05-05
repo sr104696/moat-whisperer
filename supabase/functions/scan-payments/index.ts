@@ -74,7 +74,7 @@ const tool = {
   type: "function",
   function: {
     name: "submit_company_scores",
-    description: "Submit scored payments companies",
+    description: "Submit scored public companies across all sectors",
     parameters: {
       type: "object",
       properties: {
