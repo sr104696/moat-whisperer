@@ -177,6 +177,7 @@ Deno.serve(async (req) => {
 
     const enriched = rawCompanies
       .filter((c: any) => typeof c.market_cap_usd_b === "number" && c.market_cap_usd_b > 0 && c.market_cap_usd_b < 40)
+      .filter((c: any) => c.ticker && !/^(private|n\/?a|none|pre-?ipo)$/i.test(String(c.ticker).trim()))
       .map((c: any) => {
         const raw = CATEGORIES.reduce((s, cat) => s + (c.scores[cat.key] ?? 0), 0);
         const weighted = CATEGORIES.reduce(
