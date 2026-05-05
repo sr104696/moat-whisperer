@@ -29,11 +29,12 @@ const MAX_WEIGHTED = CATEGORIES.reduce((s, c) => s + c.weight * 4, 0);
 const RUBRIC_PROMPT = `You are a rigorous public-equity moat analyst. Your job is to DISCOVER strong competitive moats among ALL PUBLIC COMPANIES under $40B market cap — NOT only payments, fintech, or familiar names.
 
 DISCOVERY PROTOCOL (follow exactly):
-1. Silently brainstorm a WIDE candidate universe of at least 80 publicly traded companies with market cap UNDER $40 billion USD across every sector: software, industrials, healthcare, life sciences tools, exchanges/data, specialty finance, insurance, logistics, marketplaces, aerospace/defense, energy services, consumer brands, vertical SaaS, infrastructure, semiconductors, specialty distribution, testing/inspection, payments/fintech, and international compounders.
-2. Use the discovery lens and seed provided by the user to deliberately explore a different part of the market each run. Do not repeat tickers in the user's exclude list.
-3. Mentally score every candidate against the 16-category generalized moat rubric below.
-4. Return 12 high-scoring companies from that universe. Prioritize the highest weighted moat scores, but diversify enough that repeated scans surface genuinely new public companies rather than the same canonical list.
-5. Every returned company MUST have a real stock ticker on a recognized exchange (NYSE, Nasdaq, LSE, Euronext, B3, HKEX, TSX, ASX, NSE/BSE, JSE, TADAWUL, SIX, OMX, TSE, KRX, SGX, IDX, BM, BMV, SZSE/SSE, etc.) and current market cap > $0 and < $40B. NO PRIVATE COMPANIES. NO PRE-IPO. NO SPACS PRE-MERGER. If uncertain a company is public and under $40B, exclude it.
+1. Silently brainstorm a WIDE candidate universe of at least 100 publicly traded companies with market cap UNDER $40 billion USD across every sector: software, industrials, healthcare, life sciences tools, exchanges/data, insurance, logistics, marketplaces, aerospace/defense, energy services, consumer brands, vertical SaaS, infrastructure, semiconductors, specialty distribution, testing/inspection, chemicals, equipment rental, franchise systems, B2B data, diagnostics, niche manufacturing, and international compounders.
+2. Payments/fintech/banks/lenders/wallets/remittance/acquiring/processing are NOT the focus. Include AT MOST ONE such company in the returned list, and only if it clearly beats the non-financial candidates.
+3. Use the discovery lens and seed provided by the user to deliberately explore a different part of the market each run. Do not repeat tickers in the user's exclude list.
+4. Mentally score every candidate against the 16-category generalized moat rubric below.
+5. Return 12 high-scoring companies from that universe. Prioritize the highest weighted moat scores, but diversify enough that repeated scans surface genuinely new public companies rather than the same canonical list.
+6. Every returned company MUST have a real stock ticker on a recognized exchange (NYSE, Nasdaq, LSE, Euronext, B3, HKEX, TSX, ASX, NSE/BSE, JSE, TADAWUL, SIX, OMX, TSE, KRX, SGX, IDX, BM, BMV, SZSE/SSE, etc.) and current market cap > $0 and < $40B. NO PRIVATE COMPANIES. NO PRE-IPO. NO SPACS PRE-MERGER. If uncertain a company is public and under $40B, exclude it.
 
 OFF-LIMITS (too big/private/overused): Visa, Mastercard, PayPal, Adyen, Block/Square, Fiserv, FIS, Global Payments, Stripe, Apple, Microsoft, Alphabet, Amazon, Meta, Nvidia, Berkshire Hathaway, JPMorgan, UnitedHealth, Eli Lilly, Novo Nordisk, ASML, TSMC.
 
@@ -61,6 +62,7 @@ Categories: system_of_record, licensing, integrations, network_effects, propriet
 
 Each company also needs:
 - name, ticker (REAL exchange ticker, e.g. "NYSE:STNE", "NASDAQ:AFRM", "B3:CIEL3"), market_cap_usd_b (current, in billions, must be > 0 and < 40)
+- sector (plain-English sector/industry, e.g. "Life sciences tools", "Industrial software", "Specialty distribution")
 - business_summary (2 sentences: what they do, who pays, how they make money)
 - source_of_moat (1 sentence — be specific, no clichés)
 - biggest_vulnerability (1 sentence — name the actual threat)
