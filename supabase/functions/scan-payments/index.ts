@@ -125,6 +125,28 @@ function tier(pct: number, hyperscalerScore: number) {
   return t;
 }
 
+const DISCOVERY_LENSES = [
+  "non-US niche software, vertical SaaS, exchanges/data, and testing/inspection businesses",
+  "Japan, Korea, Singapore, Australia, India, and Southeast Asia public companies outside mega-cap technology",
+  "Europe and UK industrial technology, specialty distribution, healthcare tools, and financial infrastructure",
+  "Latin America, MENA, Africa, and emerging-market compounders across sectors",
+  "healthcare services, life-sciences tools, medtech, dental/vet, and specialty pharma platforms",
+  "aerospace/defense suppliers, logistics infrastructure, energy services, and regulated industrials",
+  "consumer brands, marketplaces, education, gaming, and travel platforms with measurable switching costs",
+  "small and mid-cap financials, insurance brokers, exchanges, data vendors, and specialty lenders",
+];
+
+function hasRealTicker(company: any) {
+  const ticker = String(company?.ticker ?? "").trim();
+  if (!ticker || /private|simulated|placeholder|anticipated|pre-?ipo|parent|related|majority owned|n\/?a|none|unknown/i.test(ticker)) return false;
+  return /^[A-Z0-9 .-]{1,16}:[A-Z0-9.\-]{1,16}$/i.test(ticker);
+}
+
+function scoreShapeLooksReal(company: any) {
+  const values = CATEGORIES.map((cat) => Number(company?.scores?.[cat.key] ?? -1));
+  return values.every((v) => Number.isInteger(v) && v >= 0 && v <= 4) && new Set(values).size >= 3;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -132,7 +154,16 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
-    const seed = Math.random().toString(36).slice(2);
+    let body: any = {};
+    try { body = await req.json(); } catch (_) { body = {}; }
+    const excludeTickers = Array.isArray(body.excludeTickers)
+      ? body.excludeTickers.map((t: unknown) => String(t).toUpperCase()).slice(0, 80)
+      : [];
+    const seed = crypto.randomUUID();
+    const lens = DISCOVERY_LENSES[Math.floor(Math.random() * DISCOVERY_LENSES.length)];
+    const exclusions = excludeTickers.length
+      ? `\n\nDO NOT RETURN these recently shown tickers: ${excludeTickers.join(", ")}.`
+      : "";
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -142,8 +173,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are a rigorous payments industry analyst. Output via the provided tool only." },
-          { role: "user", content: `${RUBRIC_PROMPT}\n\nVariation seed: ${seed}` },
+          { role: "system", content: "You are a rigorous public-equity moat analyst. Output via the provided tool only." },
+          { role: "user", content: `${RUBRIC_PROMPT}\n\nDiscovery lens for this run: ${lens}.\nFreshness seed: ${seed}.${exclusions}` },
         ],
         tools: [tool],
         tool_choice: { type: "function", function: { name: "submit_company_scores" } },
