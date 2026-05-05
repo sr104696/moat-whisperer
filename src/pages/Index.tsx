@@ -10,6 +10,7 @@ type Category = { key: string; name: string; weight: number; inverse: boolean };
 type Company = {
   name: string;
   ticker: string;
+  sector?: string;
   market_cap_usd_b: number;
   business_summary: string;
   source_of_moat: string;
@@ -52,6 +53,7 @@ const Index = () => {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [scanCount, setScanCount] = useState(0);
   const [scanLens, setScanLens] = useState("");
+  const [seenTickers, setSeenTickers] = useState<string[]>([]);
 
   const sortedCompanies = useMemo(
     () => [...companies].sort((a, b) => b.pct - a.pct || b.weighted - a.weighted),
@@ -61,9 +63,8 @@ const Index = () => {
   const scan = useCallback(async () => {
     setLoading(true);
     try {
-      const excludeTickers = companies.map((company) => company.ticker);
       const { data, error } = await supabase.functions.invoke("scan-payments", {
-        body: { excludeTickers },
+        body: { excludeTickers: seenTickers },
       });
       if (error) throw error;
 
@@ -71,6 +72,7 @@ const Index = () => {
       setCompanies(normalized.companies);
       setCategories(normalized.categories);
       setScanLens(normalized.lens);
+      setSeenTickers((tickers) => Array.from(new Set([...tickers, ...normalized.companies.map((company) => company.ticker)])));
       setScanCount((c) => c + 1);
       setExpanded(null);
 
@@ -85,7 +87,7 @@ const Index = () => {
     } finally {
       setLoading(false);
     }
-  }, [companies]);
+  }, [seenTickers]);
 
   const ctaLabel = loading ? "Scanning markets" : companies.length ? "Fetch new list" : "Fetch companies";
 
@@ -178,7 +180,7 @@ const Index = () => {
                       <div className="col-span-12 md:col-span-4">
                         <div className="font-display text-xl font-semibold leading-tight">{c.name}</div>
                         <div className="font-mono text-xs text-muted-foreground mt-1">
-                          {c.ticker} · ${c.market_cap_usd_b.toFixed(1)}B
+                          {c.ticker} · {c.sector ?? "Public company"} · ${c.market_cap_usd_b.toFixed(1)}B
                         </div>
                       </div>
                       <div className="col-span-4 md:col-span-2">
