@@ -85,6 +85,7 @@ const tool = {
             properties: {
               name: { type: "string" },
               ticker: { type: "string" },
+              sector: { type: "string" },
               market_cap_usd_b: { type: "number" },
               business_summary: { type: "string" },
               source_of_moat: { type: "string" },
@@ -100,7 +101,7 @@ const tool = {
               },
             },
             required: [
-              "name", "ticker", "market_cap_usd_b", "business_summary",
+              "name", "ticker", "sector", "market_cap_usd_b", "business_summary",
               "source_of_moat", "biggest_vulnerability", "tier_changer", "scores",
             ],
             additionalProperties: false,
