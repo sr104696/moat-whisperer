@@ -150,9 +150,9 @@ function scoreShapeLooksReal(company: any) {
   return values.every((v) => Number.isInteger(v) && v >= 0 && v <= 4) && new Set(values).size >= 3;
 }
 
-function isFinancialCompany(company: any) {
+function isPaymentsCompany(company: any) {
   const text = `${company?.sector ?? ""} ${company?.business_summary ?? ""} ${company?.source_of_moat ?? ""}`.toLowerCase();
-  return /payment|fintech|bank|wallet|remittance|lender|lending|loan|credit|acquir|processor|merchant acquiring|card network|bnpl|insurance|brokerage|exchange/.test(text);
+  return /payment|fintech|wallet|remittance|acquir|processor|merchant acquiring|card network|bnpl|checkout|point-of-sale|pos terminal/.test(text);
 }
 
 Deno.serve(async (req) => {
@@ -237,9 +237,9 @@ Deno.serve(async (req) => {
       })
       .sort((a: any, b: any) => b.weighted - a.weighted);
 
-    const nonFinancial = scored.filter((c: any) => !isFinancialCompany(c));
-    const financial = scored.filter((c: any) => isFinancialCompany(c));
-    const enriched = [...nonFinancial.slice(0, 11), ...financial.slice(0, 1)]
+    const nonPayments = scored.filter((c: any) => !isPaymentsCompany(c));
+    const payments = scored.filter((c: any) => isPaymentsCompany(c));
+    const enriched = [...nonPayments.slice(0, 11), ...payments.slice(0, 1)]
       .sort((a: any, b: any) => b.weighted - a.weighted)
       .slice(0, 12);
 
