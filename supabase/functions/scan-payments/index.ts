@@ -26,9 +26,15 @@ const CATEGORIES = [
 
 const MAX_WEIGHTED = CATEGORIES.reduce((s, c) => s + c.weight * 4, 0);
 
-const RUBRIC_PROMPT = `You are a rigorous payments industry analyst. Generate a list of 8 DIFFERENT PUBLICLY TRADED payments-industry companies with current market cap UNDER $40 billion USD. Every company MUST have a real stock ticker on a recognized exchange (NYSE, Nasdaq, LSE, Euronext, B3, HKEX, TSX, ASX, NSE/BSE, JSE, etc.). NO PRIVATE COMPANIES. NO PRE-IPO. NO SPACS PRE-MERGER. If you are not certain a company is public and under $40B, do NOT include it.
+const RUBRIC_PROMPT = `You are a rigorous payments industry analyst. Your job is to DISCOVER the strongest competitive moats in the sub-$40B public payments universe — NOT to fill a quota with familiar names.
 
-Vary the list — include lesser-known names, geographic diversity (LatAm, Africa, Asia, EU, ME). Avoid mega-caps (Visa, Mastercard, PayPal, Adyen, Block/Square, Fiserv, FIS, Global Payments are OFF-LIMITS — too big or borderline). Stripe is OFF-LIMITS (private).
+DISCOVERY PROTOCOL (follow exactly):
+1. Silently brainstorm a WIDE candidate universe of at least 30-40 publicly traded payments-industry companies with market cap UNDER $40 billion USD. Cast a deliberately wide net: card networks regional/local, acquirers, processors, issuers, BNPL, remittance, B2B payments, payroll/payments rails, cross-border, FX, merchant services, gateway/orchestration, real-time-payments operators, prepaid/payroll-card issuers, ATM networks, money-transfer operators, embedded-finance enablers, payments-adjacent neobanks where payments is the core economic engine. Include geographic diversity (LatAm, Africa, MENA, South/SE Asia, EU, JP/KR, ANZ, North America). Lesser-known names are encouraged.
+2. Mentally score every candidate against the 16-category rubric below.
+3. Return ONLY the TOP 8 by weighted moat score from that universe. The 8 you return must be the ones the rubric ranks highest — not a balanced sampler, not your favorites, not the most famous. If two scans of yours would yield different top-8s based on what you considered, that is fine and expected.
+4. Every returned company MUST have a real stock ticker on a recognized exchange (NYSE, Nasdaq, LSE, Euronext, B3, HKEX, TSX, ASX, NSE/BSE, JSE, TADAWUL, etc.) and current market cap > $0 and < $40B. NO PRIVATE COMPANIES. NO PRE-IPO. NO SPACS PRE-MERGER. If uncertain a company is public and under $40B, exclude it.
+
+OFF-LIMITS (too big or private): Visa, Mastercard, PayPal, Adyen, Block/Square, Fiserv, FIS, Global Payments, Stripe.
 
 SCORING DISCIPLINE — read carefully:
 For EACH of the 16 categories, assign an INTEGER 0-4. Use the FULL distribution. Most categories for most companies should land at 1 or 2. A "3" requires a defensible, evidence-backed reason. A "4" should be RARE — reserved for genuine category dominance (think Visa-tier in that one dimension). Do not give a company straight 3s. Do not cluster scores. A typical sub-$40B payments company should average 1.5-2.3 weighted; only true outliers exceed 2.6.
