@@ -1,43 +1,44 @@
-// Edge function: generates a fresh ranked list of payments companies
-// under $40B market cap, scored against the Payments Moat Rubric.
+// Edge function: generates a fresh ranked list of public companies
+// under $40B market cap, scored against a generalized moat rubric.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const CATEGORIES = [
-  { key: "system_of_record", name: "System of Record", weight: 1.5, inverse: false },
-  { key: "licensing", name: "Licensing & Scheme Membership", weight: 1.0, inverse: false },
-  { key: "integrations", name: "Acquirer/Issuer/Processor Integrations", weight: 1.0, inverse: false },
-  { key: "network_effects", name: "Two-Sided Network Effects", weight: 1.5, inverse: false },
-  { key: "proprietary_data", name: "Proprietary Transaction Data", weight: 1.0, inverse: false },
-  { key: "embedded_flows", name: "Embedded in Checkout/Treasury Flows", weight: 1.5, inverse: false },
-  { key: "auth_rates", name: "Authorization Rates & Unit Economics", weight: 1.0, inverse: false },
-  { key: "hyperscaler_threat", name: "Hyperscaler & Big Tech Threat (inverse)", weight: 1.0, inverse: true },
-  { key: "local_methods", name: "Local Payment Method Coverage", weight: 0.5, inverse: false },
+  { key: "system_of_record", name: "System of Record Position", weight: 1.5, inverse: false },
+  { key: "licensing", name: "Licenses, Permits & Scarcity", weight: 1.0, inverse: false },
+  { key: "integrations", name: "Mission-Critical Integrations", weight: 1.0, inverse: false },
+  { key: "network_effects", name: "Network Effects", weight: 1.5, inverse: false },
+  { key: "proprietary_data", name: "Proprietary Data Advantage", weight: 1.0, inverse: false },
+  { key: "embedded_flows", name: "Embedded Workflow Position", weight: 1.5, inverse: false },
+  { key: "auth_rates", name: "Unit Economics & Pricing Power", weight: 1.0, inverse: false },
+  { key: "hyperscaler_threat", name: "Big Tech / Platform Threat (inverse)", weight: 1.0, inverse: true },
+  { key: "local_methods", name: "Local / Channel Coverage", weight: 0.5, inverse: false },
   { key: "vertical", name: "Vertical Specialization", weight: 1.0, inverse: false },
-  { key: "capital_float", name: "Capital & Float Economics", weight: 1.5, inverse: false },
-  { key: "chargeback", name: "Chargeback & Dispute Infrastructure", weight: 0.5, inverse: false },
-  { key: "settlement_fx", name: "Settlement Speed & FX Spread", weight: 1.0, inverse: false },
-  { key: "distribution", name: "Distribution Channel Lock-in", weight: 1.5, inverse: false },
+  { key: "capital_float", name: "Capital / Balance Sheet Advantage", weight: 1.5, inverse: false },
+  { key: "chargeback", name: "Operational Exception Handling", weight: 0.5, inverse: false },
+  { key: "settlement_fx", name: "Speed / Logistics / Cross-Border Edge", weight: 1.0, inverse: false },
+  { key: "distribution", name: "Distribution Lock-in", weight: 1.5, inverse: false },
   { key: "compliance", name: "Compliance & Risk Ops Scale", weight: 1.0, inverse: false },
-  { key: "interchange", name: "Interchange & Scheme Fee Leverage", weight: 1.0, inverse: false },
+  { key: "interchange", name: "Take-Rate / Fee Pool Control", weight: 1.0, inverse: false },
 ];
 
 const MAX_WEIGHTED = CATEGORIES.reduce((s, c) => s + c.weight * 4, 0);
 
-const RUBRIC_PROMPT = `You are a rigorous payments industry analyst. Your job is to DISCOVER the strongest competitive moats in the sub-$40B public payments universe — NOT to fill a quota with familiar names.
+const RUBRIC_PROMPT = `You are a rigorous public-equity moat analyst. Your job is to DISCOVER strong competitive moats among ALL PUBLIC COMPANIES under $40B market cap — NOT only payments, fintech, or familiar names.
 
 DISCOVERY PROTOCOL (follow exactly):
-1. Silently brainstorm a WIDE candidate universe of at least 30-40 publicly traded payments-industry companies with market cap UNDER $40 billion USD. Cast a deliberately wide net: card networks regional/local, acquirers, processors, issuers, BNPL, remittance, B2B payments, payroll/payments rails, cross-border, FX, merchant services, gateway/orchestration, real-time-payments operators, prepaid/payroll-card issuers, ATM networks, money-transfer operators, embedded-finance enablers, payments-adjacent neobanks where payments is the core economic engine. Include geographic diversity (LatAm, Africa, MENA, South/SE Asia, EU, JP/KR, ANZ, North America). Lesser-known names are encouraged.
-2. Mentally score every candidate against the 16-category rubric below.
-3. Return ONLY the TOP 8 by weighted moat score from that universe. The 8 you return must be the ones the rubric ranks highest — not a balanced sampler, not your favorites, not the most famous. If two scans of yours would yield different top-8s based on what you considered, that is fine and expected.
-4. Every returned company MUST have a real stock ticker on a recognized exchange (NYSE, Nasdaq, LSE, Euronext, B3, HKEX, TSX, ASX, NSE/BSE, JSE, TADAWUL, etc.) and current market cap > $0 and < $40B. NO PRIVATE COMPANIES. NO PRE-IPO. NO SPACS PRE-MERGER. If uncertain a company is public and under $40B, exclude it.
+1. Silently brainstorm a WIDE candidate universe of at least 80 publicly traded companies with market cap UNDER $40 billion USD across every sector: software, industrials, healthcare, life sciences tools, exchanges/data, specialty finance, insurance, logistics, marketplaces, aerospace/defense, energy services, consumer brands, vertical SaaS, infrastructure, semiconductors, specialty distribution, testing/inspection, payments/fintech, and international compounders.
+2. Use the discovery lens and seed provided by the user to deliberately explore a different part of the market each run. Do not repeat tickers in the user's exclude list.
+3. Mentally score every candidate against the 16-category generalized moat rubric below.
+4. Return 12 high-scoring companies from that universe. Prioritize the highest weighted moat scores, but diversify enough that repeated scans surface genuinely new public companies rather than the same canonical list.
+5. Every returned company MUST have a real stock ticker on a recognized exchange (NYSE, Nasdaq, LSE, Euronext, B3, HKEX, TSX, ASX, NSE/BSE, JSE, TADAWUL, SIX, OMX, TSE, KRX, SGX, IDX, BM, BMV, SZSE/SSE, etc.) and current market cap > $0 and < $40B. NO PRIVATE COMPANIES. NO PRE-IPO. NO SPACS PRE-MERGER. If uncertain a company is public and under $40B, exclude it.
 
-OFF-LIMITS (too big or private): Visa, Mastercard, PayPal, Adyen, Block/Square, Fiserv, FIS, Global Payments, Stripe.
+OFF-LIMITS (too big/private/overused): Visa, Mastercard, PayPal, Adyen, Block/Square, Fiserv, FIS, Global Payments, Stripe, Apple, Microsoft, Alphabet, Amazon, Meta, Nvidia, Berkshire Hathaway, JPMorgan, UnitedHealth, Eli Lilly, Novo Nordisk, ASML, TSMC.
 
 SCORING DISCIPLINE — read carefully:
-For EACH of the 16 categories, assign an INTEGER 0-4. Use the FULL distribution. Most categories for most companies should land at 1 or 2. A "3" requires a defensible, evidence-backed reason. A "4" should be RARE — reserved for genuine category dominance (think Visa-tier in that one dimension). Do not give a company straight 3s. Do not cluster scores. A typical sub-$40B payments company should average 1.5-2.3 weighted; only true outliers exceed 2.6.
+For EACH of the 16 categories, assign an INTEGER 0-4. Use the FULL distribution. Most categories for most companies should land at 1 or 2. A "3" requires a defensible, evidence-backed reason. A "4" should be RARE — reserved for genuine category dominance in that dimension. Do not give a company straight 3s. Do not cluster scores. A typical sub-$40B public company should average 1.4-2.3 weighted; only true outliers exceed 2.7.
 
 Anchors:
 - 0 = Absent / not applicable to the business model
@@ -46,15 +47,15 @@ Anchors:
 - 3 = Strong / measurable advantage vs. peers, defensible for 3+ years
 - 4 = Dominant / structural moat, hard to dislodge in 5+ years
 
-Category "hyperscaler_threat" is INVERSE: 4 = insulated from Apple/Google/Amazon/Big Tech encroachment, 0 = directly in the crosshairs and losing ground.
+Category "hyperscaler_threat" is INVERSE: 4 = insulated from Big Tech / dominant platform / state-owned incumbent encroachment, 0 = directly in the crosshairs and losing ground.
 
 Calibration checks before you finalize each company's scores:
-- If the company is a thin reseller / ISO / white-label processor → most categories should be 1; capital_float, network_effects, licensing typically 0-1.
-- If the company has no two-sided network → network_effects = 0 or 1, never 3+.
-- If the company doesn't hold customer balances → capital_float ≤ 1.
-- If the company doesn't issue or acquire directly → licensing ≤ 2, interchange ≤ 1.
-- If the company competes head-on with Apple Pay / Google Pay / Amazon → hyperscaler_threat ≤ 2.
-- Vertical specialization = 4 ONLY if they own >30% share of a defined vertical's payments.
+- If the company is a thin reseller, distributor, contractor, commodity manufacturer, or services roll-up → most categories should be 0-2.
+- If the company has no network effect → network_effects = 0 or 1, never 3+.
+- If the company has no capital, balance-sheet, float, inventory, financing, or underwriting edge → capital_float ≤ 1.
+- If the company does not control a scarce license, permit, regulatory approval, data right, IP estate, exchange seat, spectrum, route, or hard-to-replicate authorization → licensing ≤ 1.
+- If switching costs are low and procurement is price-driven → embedded_flows, system_of_record, and distribution should be ≤ 2.
+- Vertical specialization = 4 ONLY if they dominate a clearly defined niche with a durable share lead.
 
 Categories: system_of_record, licensing, integrations, network_effects, proprietary_data, embedded_flows, auth_rates, hyperscaler_threat, local_methods, vertical, capital_float, chargeback, settlement_fx, distribution, compliance, interchange.
 
@@ -65,7 +66,7 @@ Each company also needs:
 - biggest_vulnerability (1 sentence — name the actual threat)
 - tier_changer (1 sentence: one specific event that would move the tier up or down)
 
-Return ONLY valid JSON via the tool. Be conservative. Differentiate scores across categories — flat score profiles are a red flag and will be rejected.`;
+Return ONLY valid JSON via the tool. Be conservative. Differentiate scores across categories — flat score profiles are a red flag and will be rejected. Do not return placeholders, "simulated" tickers, parent-company references, private companies, or anticipated listings.`;
 
 const tool = {
   type: "function",
