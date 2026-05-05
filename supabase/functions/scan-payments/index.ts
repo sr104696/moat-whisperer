@@ -150,6 +150,11 @@ function scoreShapeLooksReal(company: any) {
   return values.every((v) => Number.isInteger(v) && v >= 0 && v <= 4) && new Set(values).size >= 3;
 }
 
+function isFinancialCompany(company: any) {
+  const text = `${company?.sector ?? ""} ${company?.business_summary ?? ""} ${company?.source_of_moat ?? ""}`.toLowerCase();
+  return /payment|fintech|bank|wallet|remittance|lender|lending|loan|credit|acquir|processor|merchant acquiring|card network|bnpl|insurance|brokerage|exchange/.test(text);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -216,7 +221,7 @@ Deno.serve(async (req) => {
     const rawCompanies = args.companies || [];
     console.log(`Model returned ${rawCompanies.length} companies; sample:`, JSON.stringify(rawCompanies[0])?.slice(0, 400));
 
-    const enriched = rawCompanies
+    const scored = rawCompanies
       .filter((c: any) => typeof c.market_cap_usd_b === "number" && c.market_cap_usd_b > 0 && c.market_cap_usd_b < 40)
       .filter((c: any) => hasRealTicker(c))
       .filter((c: any) => !excludeTickers.includes(String(c.ticker).toUpperCase()))
@@ -230,6 +235,11 @@ Deno.serve(async (req) => {
         const t = tier(pct, c.scores.hyperscaler_threat ?? 2);
         return { ...c, raw, weighted, max_weighted: MAX_WEIGHTED, pct, tier: t };
       })
+      .sort((a: any, b: any) => b.weighted - a.weighted);
+
+    const nonFinancial = scored.filter((c: any) => !isFinancialCompany(c));
+    const financial = scored.filter((c: any) => isFinancialCompany(c));
+    const enriched = [...nonFinancial.slice(0, 11), ...financial.slice(0, 1)]
       .sort((a: any, b: any) => b.weighted - a.weighted)
       .slice(0, 12);
 
